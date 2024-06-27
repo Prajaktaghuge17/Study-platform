@@ -1,0 +1,67 @@
+/* Navbar.css */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #d7e3ff; /* Toolbar background color */
+    color: #005cbb;
+    padding: 1rem;
+  }
+  
+  .navbar ul {
+    list-style: none;
+    display: flex;
+    gap: 1rem;
+  }
+  
+  .navbar ul li {
+    display: inline;
+  }
+  
+  .navbar ul li a {
+    color: #005cbb;
+    text-decoration: none;
+  }
+  
+  .user-info {
+    position: relative;
+  }
+  
+  .user-info img {
+    cursor: pointer;
+  }
+  
+  .user-details-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: white;
+    border: 1px solid #ccc;
+    padding: 1rem;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+  }
+  
+  #img1 {
+    width: 50px;
+  }
+  
+  #img2 {
+    width: 40px;
+    border-radius: 50%;
+  }
+  
+  #btn1 {
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+  }
+  
+  #btn1:hover {
+    background-color: #0056b3;
+  }
+  
