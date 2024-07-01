@@ -11,7 +11,8 @@ import { useAuth } from './components/AuthProvider';
 // import ProgressTracking from './components/ProgressTracking';
 // import Footer from './components/Footer';
 import Student from './components/Student';
-// import Teacher from './components/Teacher';
+
+import Teacher from './components/Teacher';
 
 const App: React.FC = () => {
   const { currentUser, userDetails } = useAuth();
@@ -29,7 +30,10 @@ const App: React.FC = () => {
         <Route path="/progress-tracking" element={<ProgressTracking user={currentUser} userDetails={userDetails} />} />
         
         <Route path="/teacher" element={currentUser ? <Teacher user={currentUser} userDetails={userDetails} /> : <Navigate to="/login" />} /> */}
-       <Route path="/student" element={<Student user={currentUser} userDetails={userDetails} />} />
+    
+       <Route path="/student" element={<Student user={currentUser}  />} />
+       <Route path="/teacher" element={<Teacher user={currentUser}  />} />
+
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       {/* {currentUser && <Footer />} */}
