@@ -20,7 +20,7 @@ const loginUser = async ({ email, password }: LoginUserParams) => {
 
 const schema = yup.object({
   email: yup.string().email('This must be a valid email').required('Email is required'),
-  password: yup.string().required('Password is required').min(6, 'Password must be at least 6 characters'),
+  password: yup.string().required('Password is required').min(6, 'Password must be at least 6 characters').matches(/^(?=.*[A-Z])/,'Password must contain atleast one capital letter'),
 }).required();
 
 interface IFormInput {

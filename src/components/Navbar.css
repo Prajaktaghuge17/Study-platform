@@ -64,4 +64,26 @@
   #btn1:hover {
     background-color: #0056b3;
   }
-  
+  /* Navbar.css */
+.navbar-dark .navbar-nav .nav-link {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.navbar-dark .navbar-nav .nav-link:hover {
+  color: rgba(255, 255, 255, 1);
+}
+
+.user-details-dropdown {
+  background-color: white;
+  border: 1px solid #ddd;
+  padding: 10px;
+  position: absolute;
+  right: 0;
+  top: 40px;
+  z-index: 1000;
+}
+
+.navbar-dark .user-details-dropdown {
+  background-color: #343a40;
+  color: white;
+}

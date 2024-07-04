@@ -1,3 +1,4 @@
+// NavBar.tsx
 import React, { useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Navbar.css';
@@ -6,27 +7,35 @@ import Profile from './profile1.png';
 import { auth } from './firebase';
 import { signOut } from 'firebase/auth';
 import { User } from 'firebase/auth';
-import { UserDetails } from './types'; // Ensure you have a types file exporting UserDetails
+
+import { useTheme } from './ThemeContext';
 
 interface NavBarProps {
-  user: User | null; // Assuming 'firebase.User' based on usage
+  user: User | null;
   userDetails: UserDetails | null;
   showUserDetails: boolean;
+}
+
+interface UserDetails {
+  name: string;
+  age: number;
+  role: string;
 }
 
 const NavBar: React.FC<NavBarProps> = ({ user, userDetails, showUserDetails }) => {
   const navigate = useNavigate();
   const [showDetails, setShowDetails] = useState(false);
+  const { isDarkMode, toggleTheme } = useTheme();
 
-  const handleLogout = useCallback(async () => {
+  const handleLogout = async () => {
     try {
       await signOut(auth);
       alert("User logged out successfully");
-      navigate('/login'); // Redirect to login page after logout
+      navigate('/login'); // Navigate to login page after logout
     } catch (error) {
       console.error("Error logging out: ", error);
     }
-  }, [navigate]);
+  };
 
   const toggleDetails = useCallback(() => {
     setShowDetails(prev => !prev);
@@ -43,7 +52,6 @@ const NavBar: React.FC<NavBarProps> = ({ user, userDetails, showUserDetails }) =
     if (showDetails && showUserDetails && userDetails) {
       return (
         <div className="user-details-dropdown">
-          <p>Email: {user.email}</p>
           <p>Name: {userDetails.name}</p>
           <p>Age: {userDetails.age}</p>
           <p>Role: {userDetails.role}</p>
@@ -52,10 +60,10 @@ const NavBar: React.FC<NavBarProps> = ({ user, userDetails, showUserDetails }) =
       );
     }
     return null;
-  }, [showDetails, showUserDetails, userDetails, user?.email, handleLogout]);
+  }, [showDetails, showUserDetails, userDetails, handleLogout]);
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-light bg-light">
+    <nav className={`navbar navbar-expand-lg ${isDarkMode ? 'navbar-dark bg-dark' : 'navbar-light bg-light'}`}>
       <div className="container-fluid">
         <Link className="navbar-brand" to="/">
           <img id='img1' src={Logo} alt="Logo" />
@@ -68,28 +76,43 @@ const NavBar: React.FC<NavBarProps> = ({ user, userDetails, showUserDetails }) =
             <li className="nav-item">
               <Link className="nav-link" to="/">Home</Link>
             </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/studynotes">Study Notes</Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/flashcards">Flashcards</Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/quizzes">Quizzes</Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/teacher" onClick={handleTeacherClick}>Teacher</Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/student">Student</Link>
-            </li>
+            {userDetails?.role === 'teacher' && (
+              <li className="nav-item">
+                <Link className="nav-link" to="/quizzes">Add Quizzes</Link>
+              </li>
+            )}
+            {userDetails?.role === 'student' && (
+              <li className="nav-item">
+                <Link className="nav-link" to="/attempt-quizzes">Attempt Quizzes</Link>
+              </li>
+            )}
+            {userDetails?.role === 'teacher' && (
+              <li className="nav-item">
+                <Link className="nav-link" to="/teacher">Teacher</Link>
+              </li>
+            )}
+            {userDetails?.role === 'student' && (
+              <li className="nav-item">
+                <Link className="nav-link" to="/student">Student</Link>
+              </li>
+            )}
+            {userDetails?.role === 'student' && (
+              <li className="nav-item">
+                <Link className="nav-link" to="/my-profile">My Profile</Link>
+              </li>
+            )}
           </ul>
-          {user && (
-            <div className="user-info ms-auto">
-              <img id='img2' src={Profile} alt="Profile" onClick={toggleDetails} />
-              {userDetailsContent}
-            </div>
-          )}
+          <div className="d-flex align-items-center ms-auto">
+            <button className="btn btn-secondary me-2" onClick={toggleTheme}>
+              {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+            </button>
+            {user && (
+              <div className="user-info">
+                <img id='img2' src={Profile} alt="Profile" onClick={toggleDetails} />
+                {userDetailsContent}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </nav>

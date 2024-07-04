@@ -3,10 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { auth } from './firebase';
 import { useMutation } from '@tanstack/react-query';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, AuthErrorCodes } from 'firebase/auth';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import "./Register.css";
+import './Register.css';
 
 interface RegisterUserParams {
   email: string;
@@ -20,7 +20,7 @@ const registerUser = async ({ email, password }: RegisterUserParams) => {
 
 const schema = yup.object({
   email: yup.string().email('This must be a valid email').required('Email is required'),
-  password: yup.string().required('Password is required').min(6, 'Password must be at least 6 characters'),
+  password: yup.string().required('Password is required').min(6, 'Password must be at least 6 characters').matches(/^(?=.*[A-Z])/, 'Password must contain at least one capital letter'),
 }).required();
 
 interface IFormInput {
@@ -37,17 +37,21 @@ const Registration: React.FC = () => {
 
   const mutation = useMutation({
     mutationFn: registerUser,
-    onSuccess: useCallback(() => {//The onSuccess and onError handlers in the useMutation hook are wrapped in useCallback to prevent them from being re-created unnecessarily.
+    onSuccess: useCallback(() => {
       alert('Account Created Successfully. Please log in.');
       navigate('/login');
     }, [navigate]),
-    onError: useCallback((error) => {
-      console.error('Error registering:', error);
-      alert('Failed to create account. Please try again.');
+    onError: useCallback((error: any) => {
+      if (error.code === AuthErrorCodes.EMAIL_EXISTS) {
+        alert('This email is already in use. Please use another email.');
+      } else {
+        console.error('Error registering:', error);
+        alert('Failed to create account. Please try again.');
+      }
     }, []),
   });
 
-  const onSubmit: SubmitHandler<IFormInput> = useCallback((data) => {//The onSubmit function is also wrapped in useCallback to avoid inline arrow functions and improve performance.
+  const onSubmit: SubmitHandler<IFormInput> = useCallback((data) => {
     mutation.mutate(data);
   }, [mutation]);
 
@@ -76,7 +80,7 @@ const Registration: React.FC = () => {
                 type="password"
                 className="form-control"
                 id="password"
-                {...register("password")} //The onSubmit function is also wrapped in useCallback to avoid inline arrow functions and improve performance.
+                {...register("password")}
                 required
               />
               {errors.password && (
