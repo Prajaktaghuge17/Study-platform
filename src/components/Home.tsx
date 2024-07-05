@@ -1,27 +1,39 @@
+// Home.tsx
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth, db } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import notesImage from './notes.jpg';
-import flashcardsImage from './flashcard.jpg';
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import quizzesImage from './quiz.png';
-import studyGroupsImage from './studygroup.jpg';
-import discussionBoardImage from './discussion.jpg';
-import progressTrackingImage from './progress.png';
 import NavBar from './Navbar';
 import firebase from 'firebase/compat/app';
+import 'bootstrap/dist/css/bootstrap.min.css';
 import './Home.css';
+import { useTheme } from './ThemeContext';
+
 interface UserDetails {
   name: string;
   age: number;
   role: string;
 }
 
+interface StudyMaterial {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  teacherId: string;
+}
+
 const Home: React.FC = () => {
   const [user, setUser] = useState<firebase.User | null>(null);
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const [needsDetails, setNeedsDetails] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [savedMaterials, setSavedMaterials] = useState<string[]>([]);
+  const [filteredMaterials, setFilteredMaterials] = useState<StudyMaterial[]>([]);
+  const [loading, setLoading] = useState<boolean>(true); // Loading state added
+  const { isDarkMode } = useTheme(); // Use theme context
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,15 +51,37 @@ const Home: React.FC = () => {
           setUserDetails(userData);
           setNeedsDetails(false);
         }
+        setLoading(false); // Set loading to false once user details are fetched
       } else {
         console.log('No user logged in. Redirecting to login.');
         setUser(null);
+        setLoading(false); // Set loading to false if no user is logged in
         navigate('/login');
       }
     });
 
     return () => unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    const fetchSavedMaterials = async () => {
+      try {
+        if (user) {
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as UserDetails;
+            const savedMaterialIds = userData.savedMaterials || [];
+            setSavedMaterials(savedMaterialIds);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching saved materials:', error);
+      }
+    };
+
+    fetchSavedMaterials();
+  }, [user]);
 
   const handleDetailsSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -59,17 +93,18 @@ const Home: React.FC = () => {
 
     try {
       if (!user) throw new Error("User is not logged in");
-      
+
       const userData: UserDetails = {
         name: name.value,
         age: parseInt(age.value),
-        role: role.value
+        role: role.value,
+        savedMaterials: [],
       };
       await setDoc(doc(db, 'users', user.uid), userData);
       console.log('User details saved successfully.');
       setUserDetails(userData);
       setNeedsDetails(false);
-      
+
       if (role.value === 'student') {
         navigate('/student');
       } else if (role.value === 'teacher') {
@@ -80,37 +115,99 @@ const Home: React.FC = () => {
     }
   };
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleSaveMaterial = async (materialId: string) => {
+    try {
+      if (!user) throw new Error("User is not logged in");
+
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) {
+        const userData = userDoc.data() as UserDetails;
+        const updatedSavedMaterials = [...userData.savedMaterials, materialId];
+        await setDoc(userDocRef, { savedMaterials: updatedSavedMaterials }, { merge: true });
+        setSavedMaterials(updatedSavedMaterials);
+      }
+    } catch (error) {
+      console.error('Error saving material:', error);
+    }
+  };
+
+  const handleRemoveSavedMaterial = async (materialId: string) => {
+    try {
+      if (!user) throw new Error("User is not logged in");
+
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) {
+        const userData = userDoc.data() as UserDetails;
+        const updatedSavedMaterials = userData.savedMaterials.filter(id => id !== materialId);
+        await setDoc(userDocRef, { savedMaterials: updatedSavedMaterials }, { merge: true });
+        setSavedMaterials(updatedSavedMaterials);
+      }
+    } catch (error) {
+      console.error('Error removing saved material:', error);
+    }
+  };
+
+  const handleSearchSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    try {
+      const q = query(collection(db, 'studyMaterials'), where('title', '==', searchQuery));
+      const querySnapshot = await getDocs(q);
+      const materials = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as StudyMaterial[];
+      setFilteredMaterials(materials);
+    } catch (error) {
+      console.error('Error searching materials:', error);
+    }
+  };
+
+  // Show spinner while loading
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <NavBar user={user} userDetails={userDetails} showUserDetails={true} />
       {needsDetails ? (
-        <form onSubmit={handleDetailsSubmit} className="container mt-5">
-          <div className="mb-3">
-            <label htmlFor="name" className="form-label">Name:</label>
-            <input type="text" id="name" name="name" className="form-control" required />
-          </div>
-          <div className="mb-3">
-            <label htmlFor="age" className="form-label">Age:</label>
-            <input type="number" id="age" name="age" className="form-control" required />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Role:</label>
-            <div>
-              <div className="form-check">
-                <input type="radio" id="student" name="role" value="student" className="form-check-input" required />
-                <label htmlFor="student" className="form-check-label">Student</label>
-              </div>
-              <div className="form-check">
-                <input type="radio" id="teacher" name="role" value="teacher" className="form-check-input" required />
-                <label htmlFor="teacher" className="form-check-label">Teacher</label>
+        <div className="container mt-5 d-flex justify-content-center">
+          <form onSubmit={handleDetailsSubmit} className="w-50">
+            <div className="mb-3">
+              <label htmlFor="name" className="form-label">Name:</label>
+              <input type="text" id="name" name="name" className="form-control" required />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="age" className="form-label">Age:</label>
+              <input type="number" id="age" name="age" className="form-control" required />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Role:</label>
+              <div>
+                <div className="form-check">
+                  <input type="radio" id="student" name="role" value="student" className="form-check-input" required />
+                  <label htmlFor="student" className="form-check-label">Student</label>
+                </div>
+                <div className="form-check">
+                  <input type="radio" id="teacher" name="role" value="teacher" className="form-check-input" required />
+                  <label htmlFor="teacher" className="form-check-label">Teacher</label>
+                </div>
               </div>
             </div>
-          </div>
-          <button type="submit" className="btn btn-primary">Submit</button>
-        </form>
+            <button type="submit" className="btn btn-primary">Submit</button>
+          </form>
+        </div>
       ) : (
-        
-        <div className="container mt-5">
+        <div className={`container mt-5 ${isDarkMode ? 'text-light' : 'text-dark'}`}>
           <div className="text-center mb-5">
             <h1>Welcome to the Collaborative Study Platform</h1>
             <p>Your one-stop destination for creating and sharing study notes, flashcards, quizzes, and more.</p>
@@ -118,65 +215,34 @@ const Home: React.FC = () => {
           <div className="row justify-content-center">
             <div className="col-md-4 p-5">
               <div className="card">
-                <img src={notesImage} alt="Study Notes" className="card-img-top" />
-                <div className="card-body">
-                  <h5 className="card-title">Study Notes</h5>
-                  <p className="card-text">Create and share your study notes with others.</p>
-                  <Link to="/study-materials" className="btn btn-primary">Go to Study Notes</Link>
-                </div>
-              </div>
-            </div>
-            <div className="col-md-4 p-5 ">
-              <div className="card">
-                <img src={flashcardsImage} alt="Flashcards" className="card-img-top" />
-                <div className="card-body">
-                  <h5 className="card-title">Flashcards</h5>
-                  <p className="card-text">Create flashcards to help you memorize key concepts.</p>
-                  <Link to="/study-materials" className="btn btn-primary">Go to Flashcards</Link>
-                </div>
-              </div>
-            </div>
-            <div className="col-md-4 p-5 " >
-              <div className="card">
                 <img src={quizzesImage} alt="Quizzes" className="card-img-top" /><br/>
                 <div className="card-body">
                   <h5 className="card-title">Quizzes</h5>
                   <p className="card-text">Test your knowledge with quizzes created by other users.</p>
-                  <Link to="/study-materials" className="btn btn-primary">Go to Quizzes</Link>
-                </div>
-              </div>
-            </div>
-            <div className="col-md-4 p-5">
-              <div className="card">
-                <img src={studyGroupsImage} alt="Study Groups" className="card-img-top" />
-                <div className="card-body">
-                  <h5 className="card-title">Study Groups</h5>
-                  <p className="card-text">Join study groups and collaborate with peers.</p>
-                  <Link to="/study-groups" className="btn btn-primary">Go to Study Groups</Link>
-                </div>
-              </div>
-            </div>
-            <div className="col-md-4 p-5">
-              <div className="card">
-                <img src={discussionBoardImage} alt="Discussion Board" className="card-img-top" /><br/>
-                <div className="card-body">
-                  <h5 className="card-title">Discussion Board</h5>
-                  <p className="card-text">Engage in discussions and get help from others.</p>
-                  <Link to="/discussion-board" className="btn btn-primary">Go to Discussion Board</Link>
-                </div>
-              </div>
-            </div>
-            <div className="col-md-4 p-5">
-              <div className="card">
-                <img src={progressTrackingImage} alt="Progress Tracking" className="card-img-top" /><br/>
-                <div className="card-body">
-                  <h5 className="card-title">Progress Tracking</h5>
-                  <p className="card-text">Track your progress and stay motivated.</p>
-                  <Link to="/progress-tracking" className="btn btn-primary">Go to Progress Tracking</Link>
+                  <Link to="/attempt-quizzes" className="btn btn-primary">Go to Quizzes</Link>
                 </div>
               </div>
             </div>
           </div>
+          {filteredMaterials.length > 0 && (
+            <div className="row justify-content-center mt-5">
+              <div className="col-md-8">
+                <h3>Search Results</h3>
+                <ul className="list-group">
+                  {filteredMaterials.map(material => (
+                    <li key={material.id} className="list-group-item d-flex justify-content-between align-items-center">
+                      {material.title}
+                      {!savedMaterials.includes(material.id) ? (
+                        <button className="btn btn-primary" onClick={() => handleSaveMaterial(material.id)}>Save</button>
+                      ) : (
+                        <button className="btn btn-danger" onClick={() => handleRemoveSavedMaterial(material.id)}>Remove</button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
